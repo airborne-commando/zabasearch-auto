@@ -16,7 +16,7 @@ A Selenium-based web scraper for extracting people search results from ZabaSearc
 - Python 3.6+
 - Chrome browser installed
 - ChromeDriver matching your Chrome version
-- Required Python packages (install via `pip install -r requirements.txt`)
+- Required Python packages (install via `pip3 install -r requirements.txt`)
 
 ## Installation
 
@@ -29,7 +29,7 @@ A Selenium-based web scraper for extracting people search results from ZabaSearc
 2. Install dependencies:
 
    ```
-   python3 -m venv venv && source /venv/bin/activate && pip install -r requirements.txt
+   python3 -m venv venv && source /venv/bin/activate && pip3 install -r requirements.txt
    ```
 
 3. Download ChromeDriver:
