@@ -4,9 +4,11 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
+from bs4 import BeautifulSoup
 import time
 import random
 import os
+import re
 
 # Path to ChromeDriver
 chrome_driver_path = '/usr/bin/chromedriver'
@@ -43,14 +45,100 @@ def check_and_remove_junk_files(filename):
             pass
     return False
 
+def extract_relevant_info(content):
+    """Extract only the specified fields from the Zabasearch results page content"""
+    relevant_info = []
+    
+    # Parse the HTML with BeautifulSoup
+    soup = BeautifulSoup(content, 'html.parser')
+    
+    # Find all person sections
+    person_sections = soup.find_all('div', class_='person')
+    
+    for person in person_sections:
+        # Extract name
+        name_tag = person.find('h2')
+        if name_tag and name_tag.a:
+            relevant_info.append(f"Name: {name_tag.a.get_text(strip=True)}")
+        
+        # Extract age
+        age_tag = person.find('h3')
+        if age_tag:
+            relevant_info.append(f"Age: {age_tag.get_text(strip=True)}")
+        
+        # Extract AKA/Aliases
+        aka_div = person.find('div', id='container-alt-names')
+        if aka_div:
+            aliases = [li.get_text(strip=True) for li in aka_div.find_all('li')]
+            if aliases:
+                relevant_info.append("AKA: " + ", ".join(aliases))
+        
+        # Extract phone numbers
+        phones_div = person.find('h3', string='Associated Phone Numbers')
+        if phones_div:
+            phones_ul = phones_div.find_next('ul')
+            if phones_ul:
+                phones = [a.get_text(strip=True) for a in phones_ul.find_all('a')]
+                if phones:
+                    relevant_info.append("Associated Phone Numbers: " + ", ".join(phones))
+        
+        # Extract email addresses - improved to get full domains
+        emails_div = person.find('h3', string='Associated Email Addresses')
+        if emails_div:
+            emails_ul = emails_div.find_next('ul')
+            if emails_ul:
+                emails = []
+                for li in emails_ul.find_all('li'):
+                    # Handle both blurred and normal email formats
+                    email_text = li.get_text(strip=True)
+                    if '@' in email_text:
+                        # Extract complete email address
+                        email_match = re.search(r'[\w\.-]+@[\w\.-]+', email_text)
+                        if email_match:
+                            emails.append(email_match.group(0))
+                if emails:
+                    relevant_info.append("Associated Email Addresses: " + ", ".join(emails))
+        
+        # Extract last known address
+        address_div = person.find('h3', string='Last Known Address')
+        if address_div:
+            address_p = address_div.find_next('p')
+            if address_p:
+                address = address_p.get_text(" ", strip=True).replace("\n", "").replace("  ", " ")
+                relevant_info.append("Last Known Address: " + address)
+        
+        # Extract past addresses
+        past_addresses_div = person.find('h3', string='Past Addresses')
+        if past_addresses_div:
+            past_addresses_ul = past_addresses_div.find_next('ul')
+            if past_addresses_ul:
+                past_addresses = []
+                for li in past_addresses_ul.find_all('li'):
+                    address = li.get_text(" ", strip=True).replace("\n", " ").replace("  ", " ")
+                    past_addresses.append(address)
+                if past_addresses:
+                    relevant_info.append("Past Addresses:\n" + "\n".join(past_addresses))
+        
+        # Add separator between people
+        relevant_info.append("\n" + "-"*50 + "\n")
+    
+    # Remove the last separator if it exists
+    if relevant_info and relevant_info[-1].strip() == '-'*50:
+        relevant_info = relevant_info[:-1]
+    
+    return '\n'.join(relevant_info)
+
 def save_results(filename, content):
     if not content or is_junk_content(content):
         print(f"Not saving junk content to {filename}")
         return False
     
     try:
+        # Extract only the relevant information before saving
+        filtered_content = extract_relevant_info(content)
+        
         with open(filename, 'w') as f:
-            f.write(content)
+            f.write(filtered_content)
         
         if is_junk_file(filename) or is_junk_content(open(filename).read()):
             print(f"Removing junk file after verification: {filename}")
@@ -162,10 +250,10 @@ def perform_search(input_data, driver):
             pass
 
         try:
-            return driver.find_element(By.CSS_SELECTOR, ".results-container").text
+            return driver.page_source  # Return the full HTML source
         except NoSuchElementException:
             try:
-                return driver.find_element(By.TAG_NAME, 'body').text
+                return driver.page_source
             except:
                 return "No results found - page structure may have changed"
 
