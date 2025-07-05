@@ -78,6 +78,33 @@ Results are saved as individual text files named:
 zaba_results_[firstname]_[lastname].txt
 ```
 
+## Troubleshooting
+
+      Error handling consent modal: Message: 
+      Stacktrace:
+      #0 0x558f1c59f26a <unknown>
+      #1 0x558f1c049ab0 <unknown>
+      #2 0x558f1c09b6f0 <unknown>
+      #3 0x558f1c09b8e1 <unknown>
+      #4 0x558f1c0e9b94 <unknown>
+      #5 0x558f1c0c11cd <unknown>
+      #6 0x558f1c0e6fee <unknown>
+      #7 0x558f1c0c0f73 <unknown>
+      #8 0x558f1c08daeb <unknown>
+      #9 0x558f1c08e751 <unknown>
+      #10 0x558f1c563b7b <unknown>
+      #11 0x558f1c567959 <unknown>
+      #12 0x558f1c54a959 <unknown>
+      #13 0x558f1c568518 <unknown>
+      #14 0x558f1c52f10f <unknown>
+      #15 0x558f1c58c918 <unknown>
+      #16 0x558f1c58caf6 <unknown>
+      #17 0x558f1c59e586 <unknown>
+      #18 0x7f54758a07eb <unknown>
+      #19 0x7f547592418c <unknown>
+
+If it's multiple items in a CSV file, you can safely ignore. It's just trying to find the consent button which no longer exists (it was already clicked).
+
 ## Anti-Detection Features
 
 - Randomized user-agent strings
