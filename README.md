@@ -99,7 +99,6 @@ The script includes:
 Please use this script responsibly and in compliance with:
 - ZabaSearch's Terms of Service
 - Applicable laws and regulations in your jurisdiction
-- Computer Fraud and Abuse Act (CFAA)
 - Website robots.txt restrictions
 
 The maintainers of this project are not responsible for any misuse of this tool.
