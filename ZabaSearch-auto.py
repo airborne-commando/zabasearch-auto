@@ -9,76 +9,97 @@ import random
 import os
 
 # Path to ChromeDriver
-chrome_driver_path = '/usr/bin/chromedriver'  # Adjust if necessary
+chrome_driver_path = '/usr/bin/chromedriver'
 
-# Function to simulate human-like delays
 def human_delay(min=0.5, max=2.5):
     time.sleep(random.uniform(min, max))
 
-# Function to read input from a text file
+def is_junk_file(file_path):
+    try:
+        return os.path.getsize(file_path) == 2252  # 2.2 KiB exact size
+    except:
+        return False
+
+def is_junk_content(content):
+    junk_patterns = [
+        "Status: 404, NOT FOUND",
+        "Search Error",
+        "Please try again",
+        "No records found",
+        "No matches found"
+    ]
+    return any(pattern in content for pattern in junk_patterns)
+
+def check_and_remove_junk_files(filename):
+    if os.path.exists(filename):
+        try:
+            with open(filename) as f:
+                content = f.read()
+                if is_junk_file(filename) or is_junk_content(content):
+                    print(f"Removing junk file: {filename}")
+                    os.remove(filename)
+                    return True
+        except:
+            pass
+    return False
+
+def save_results(filename, content):
+    if not content or is_junk_content(content):
+        print(f"Not saving junk content to {filename}")
+        return False
+    
+    try:
+        with open(filename, 'w') as f:
+            f.write(content)
+        
+        if is_junk_file(filename) or is_junk_content(open(filename).read()):
+            print(f"Removing junk file after verification: {filename}")
+            os.remove(filename)
+            return False
+            
+        return True
+    except Exception as e:
+        print(f"Error saving results: {e}")
+        return False
+
 def read_input_from_file(file_path):
     with open(file_path, 'r') as file:
         lines = file.readlines()
         data = []
         for line in lines:
-            # Skip header row if exists
-            if line.startswith("First Name") or line.startswith("first_name"):
+            if line.startswith(("First Name", "first_name")) or not line.strip():
                 continue
-            if not line.strip():
-                continue
-            
-            # Detect delimiter
             delimiter = '\t' if '\t' in line else ','
             parts = line.strip().split(delimiter)
-            
-            if len(parts) < 2:
-                print(f"Skipping invalid line: {line.strip()}")
-                continue
-                
-            first_name = parts[0]
-            last_name = parts[1]
-            city = parts[2] if len(parts) > 2 else ""
-            state = parts[3] if len(parts) > 3 else ""
-            
-            data.append({
-                'first_name': first_name,
-                'last_name': last_name,
-                'city': city,
-                'state': state
-            })
-    return data
+            if len(parts) >= 2:
+                data.append({
+                    'first_name': parts[0],
+                    'last_name': parts[1],
+                    'city': parts[2] if len(parts) > 2 else "",
+                    'state': parts[3] if len(parts) > 3 else ""
+                })
+        return data
 
-# Function to handle the consent modal - UPDATED VERSION
 def handle_consent_modal(driver):
     try:
-        # Wait for modal to be fully visible and interactive
         WebDriverWait(driver, 15).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, ".modal-wrapper.open"))
-        )
+            EC.visibility_of_element_located((By.CSS_SELECTOR, ".modal-wrapper.open")))
         
-        # Scroll the modal into view
         modal = driver.find_element(By.ID, "warning-modal")
         driver.execute_script("arguments[0].scrollIntoView(true);", modal)
         time.sleep(1)
         
-        # Try multiple ways to click the agreement
         try:
-            # First try clicking the visible "I AGREE" text
             agree_button = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, ".inside-copy"))
-            )
+                EC.element_to_be_clickable((By.CSS_SELECTOR, ".inside-copy")))
             driver.execute_script("arguments[0].click();", agree_button)
         except:
-            # Fallback to clicking the checkbox wrapper using JavaScript
             checkbox = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "#security-check .check-wrapper"))
-            )
+                EC.presence_of_element_located((By.CSS_SELECTOR, "#security-check .check-wrapper")))
             driver.execute_script("arguments[0].click();", checkbox)
         
-        # Wait for modal to disappear
         WebDriverWait(driver, 10).until(
-            EC.invisibility_of_element_located((By.CSS_SELECTOR, ".modal-overlay.open"))
-        )
+            EC.invisibility_of_element_located((By.CSS_SELECTOR, ".modal-overlay.open")))
         
         human_delay()
         return True
@@ -88,16 +109,8 @@ def handle_consent_modal(driver):
         driver.save_screenshot("consent_modal_error.png")
         return False
 
-# Function to perform a search - UPDATED VERSION
 def perform_search(input_data, driver):
     try:
-        # Ensure we're on the search page
-        if "zabasearch.com/people/" in driver.current_url:
-            driver.get('https://www.zabasearch.com/')
-            if not handle_consent_modal(driver):
-                return None
-
-        # Fill form fields with retries
         def fill_field(selector, value):
             for attempt in range(3):
                 try:
@@ -113,35 +126,27 @@ def perform_search(input_data, driver):
                         return False
                     time.sleep(1)
         
-        # Fill first name with retries
         if not fill_field(".search-first-name", input_data['first_name']):
             return None
-            
-        # Fill last name with retries
         if not fill_field(".search-last-name", input_data['last_name']):
             return None
             
-        # Fill city if provided
         if input_data['city']:
             fill_field(".search-city", input_data['city'])
             
-        # Select state if provided
         if input_data['state']:
             try:
                 state_element = WebDriverWait(driver, 10).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, ".search-state")))
-                state_dropdown = Select(state_element)
-                state_dropdown.select_by_visible_text(input_data['state'])
+                Select(state_element).select_by_visible_text(input_data['state'])
                 human_delay(1, 2)
             except Exception as e:
                 print(f"Couldn't select state: {e}")
 
-        # Submit with retry
         for attempt in range(2):
             try:
-                submit_button = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, ".button-search")))
-                submit_button.click()
+                WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, ".button-search"))).click()
                 break
             except:
                 if attempt == 1:
@@ -149,18 +154,15 @@ def perform_search(input_data, driver):
                     return None
                 time.sleep(2)
 
-        # Wait for results with dynamic timeout
         try:
             WebDriverWait(driver, random.uniform(5, 10)).until(
                 lambda d: "results" in d.current_url.lower() or 
                 d.find_elements(By.CSS_SELECTOR, ".results-container"))
         except:
-            pass  # Continue even if timeout occurs
+            pass
 
-        # Capture results with multiple fallbacks
         try:
-            results_container = driver.find_element(By.CSS_SELECTOR, ".results-container")
-            return results_container.text
+            return driver.find_element(By.CSS_SELECTOR, ".results-container").text
         except NoSuchElementException:
             try:
                 return driver.find_element(By.TAG_NAME, 'body').text
@@ -172,85 +174,74 @@ def perform_search(input_data, driver):
         driver.save_screenshot(f"search_error_{time.time()}.png")
         return None
 
-def main():
-    driver = None
-    try:
-        # Initialize WebDriver with Chrome options - ADD THIS SECTION
-        service = Service(chrome_driver_path)
-        
-        # Configure Chrome options
-        options = webdriver.ChromeOptions()
-        options.add_argument("--start-maximized")
-        options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        options.add_experimental_option('useAutomationExtension', False)
-        options.add_argument(f"user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{random.randint(100,115)}.0.0.0 Safari/537.36")
-        
-        # Initialize the driver with options
-        driver = webdriver.Chrome(service=service, options=options)
-        
-        # Additional stealth settings
-        driver.execute_cdp_cmd('Network.setUserAgentOverride', {"userAgent": options.arguments[-1].split('=')[1]})
-        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        
-        # Rest of your existing main() function continues here...
-        # Navigate to ZabaSearch
-        driver.get('https://www.zabasearch.com/')
-        human_delay()
-        
-        # Handle consent modal
-        if not handle_consent_modal(driver):
-            print("Failed to handle consent modal. Exiting.")
-            return
+def create_driver():
+    service = Service(chrome_driver_path)
+    options = webdriver.ChromeOptions()
+    options.add_argument("--start-maximized")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option('useAutomationExtension', False)
+    options.add_argument(f"user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{random.randint(100,115)}.0.0.0 Safari/537.36")
+    
+    driver = webdriver.Chrome(service=service, options=options)
+    driver.execute_cdp_cmd('Network.setUserAgentOverride', {"userAgent": options.arguments[-1].split('=')[1]})
+    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+    
+    return driver
 
-        # Get input data
+def main():
+    input_data_list = []
+    try:
         use_file = input("Read from file? (yes/no): ").strip().lower()
         if use_file == 'yes':
             file_path = input("Enter file path: ").strip()
             input_data_list = read_input_from_file(file_path)
         else:
-            first_name = input("First Name: ")
-            last_name = input("Last Name: ")
-            city = input("City (optional): ")
-            state = input("State (optional): ")
             input_data_list = [{
-                'first_name': first_name,
-                'last_name': last_name,
-                'city': city,
-                'state': state
+                'first_name': input("First Name: "),
+                'last_name': input("Last Name: "),
+                'city': input("City (optional): "),
+                'state': input("State (optional): ")
             }]
 
-        # Process searches
         for i, input_data in enumerate(input_data_list):
             print(f"Searching for {input_data['first_name']} {input_data['last_name']}...")
             
-            # Return to search page if not there
-            if "zabasearch.com/people/" in driver.current_url:
+            # Create new driver instance for each search
+            driver = create_driver()
+            try:
                 driver.get('https://www.zabasearch.com/')
                 human_delay()
-                handle_consent_modal(driver)
+                
+                if not handle_consent_modal(driver):
+                    print("Failed to handle consent modal. Skipping...")
+                    continue
 
-            results = perform_search(input_data, driver)
-            
-            if results:
                 filename = f"zaba_results_{input_data['first_name']}_{input_data['last_name']}.txt"
-                with open(filename, 'w') as f:
-                    f.write(results)
-                print(f"Results saved to {filename}")
+                check_and_remove_junk_files(filename)
+                
+                results = perform_search(input_data, driver)
+                
+                if results:
+                    if save_results(filename, results):
+                        print(f"Successfully saved valid results to {filename}")
+                    else:
+                        print(f"Results not saved - detected as junk")
+            finally:
+                # Always quit the driver after each search
+                driver.quit()
+                human_delay(1, 3)  # Small delay between driver restarts
 
-            # Random delay between searches
             if i < len(input_data_list) - 1:
-                delay = random.randint(10, 30)
+                delay = random.randint(15, 45)  # Longer delay between searches
                 print(f"Waiting {delay} seconds before next search...")
                 time.sleep(delay)
 
     except Exception as e:
         print(f"Error: {e}")
-        if driver:
-            driver.save_screenshot('error.png')
     finally:
-        if driver:
-            driver.quit()
+        # No need to quit driver here since we quit after each search
+        pass
 
 if __name__ == "__main__":
     main()
