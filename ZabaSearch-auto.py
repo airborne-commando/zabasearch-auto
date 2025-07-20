@@ -265,7 +265,14 @@ def perform_search(input_data, driver):
 def create_driver():
     service = Service(chrome_driver_path)
     options = webdriver.ChromeOptions()
-    options.add_argument("--start-maximized")
+    
+    # Headless mode settings
+    options.add_argument("--headless=new")  # Use new headless mode if available
+    options.add_argument("--window-size=1920,1080")  # Set window size for headless
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option('useAutomationExtension', False)
@@ -295,7 +302,7 @@ def main():
         for i, input_data in enumerate(input_data_list):
             print(f"Searching for {input_data['first_name']} {input_data['last_name']}...")
             
-            # Create new driver instance for each search
+            # Create new driver instance for each search (now always headless)
             driver = create_driver()
             try:
                 driver.get('https://www.zabasearch.com/')
