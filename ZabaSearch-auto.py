@@ -114,7 +114,7 @@ def extract_relevant_info(content):
             if past_addresses_ul:
                 past_addresses = []
                 for li in past_addresses_ul.find_all('li'):
-                    address = li.get_text(" ", strip=True).replace("\n", ").replace("  ", " ")
+                    address = li.get_text(" ", strip=True).replace("\n", " ").replace("  ", " ")
                     past_addresses.append(address)
                 if past_addresses:
                     relevant_info.append("Past Addresses:\n" + "\n".join(past_addresses))
@@ -262,25 +262,21 @@ def perform_search(input_data, driver):
         driver.save_screenshot(f"search_error_{time.time()}.png")
         return None
 
-def create_driver(headless=False):
+def create_driver():
     service = Service(chrome_driver_path)
     options = webdriver.ChromeOptions()
     
-    if headless:
-        options.add_argument("--headless=new")  # Use new headless mode if available
-        options.add_argument("--window-size=1920,1080")  # Set window size for headless
+    # Headless mode settings
+    options.add_argument("--headless=new")  # Use new headless mode if available
+    options.add_argument("--window-size=1920,1080")  # Set window size for headless
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
     
-    options.add_argument("--start-maximized")
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option('useAutomationExtension', False)
     options.add_argument(f"user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{random.randint(100,115)}.0.0.0 Safari/537.36")
-    
-    # Additional options for headless mode
-    if headless:
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--disable-gpu")
     
     driver = webdriver.Chrome(service=service, options=options)
     driver.execute_cdp_cmd('Network.setUserAgentOverride', {"userAgent": options.arguments[-1].split('=')[1]})
@@ -303,14 +299,11 @@ def main():
                 'state': input("State (optional): ")
             }]
 
-        # Ask user if they want to run in headless mode
-        headless_mode = input("Run in headless mode? (yes/no): ").strip().lower() == 'yes'
-
         for i, input_data in enumerate(input_data_list):
             print(f"Searching for {input_data['first_name']} {input_data['last_name']}...")
             
-            # Create new driver instance for each search
-            driver = create_driver(headless=headless_mode)
+            # Create new driver instance for each search (now always headless)
+            driver = create_driver()
             try:
                 driver.get('https://www.zabasearch.com/')
                 human_delay()
