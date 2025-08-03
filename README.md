@@ -75,8 +75,34 @@ You can modify the following parameters in the script:
 
 Results are saved as individual text files named:
 ```
-zaba_results_[firstname]_[lastname].txt
+..results/zaba_results_[firstname]_[lastname].txt
 ```
+
+# **NEW TOOL**
+
+`filter.py`
+A tool that can filter results for you on county and will spit out information.
+
+Example:
+
+      Name: first last
+      Age: AGE
+      
+      AKA: first last
+      
+      Phone Numbers:
+        - xxx-xxx-xxxx
+      
+      Email Addresses:
+        - email@email.com
+      
+      Current Address: 1111 street street New street, Pennsylvania 00000
+      Current ZIP: 15068
+      Current County: Westmoreland
+      
+      In Target County: YES
+      
+      Found 3 matches in zaba_results_dev_new.txt
 
 ## Anti-Detection Features
 
